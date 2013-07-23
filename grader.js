@@ -26,7 +26,7 @@ var program = require('commander');
 var cheerio = require('cheerio');
 var HTMLFILE_DEFAULT = "index.html";
 var CHECKSFILE_DEFAULT = "checks.json";
-
+var rest = require('restler');
 var assertFileExists = function(infile) {
     var instr = infile.toString();
     if(!fs.existsSync(instr)) {
@@ -55,6 +55,18 @@ var checkHtmlFile = function(htmlfile, checksfile) {
     return out;
 };
 
+var loadhtml = function(urltext) {
+    rest.get(urltext).on('complete', function(result) {
+      if (result instanceof Error) {
+        console.log('Error: ' + result.message);
+        this.retry(5000);
+      } else {
+//        console.log(result);
+          fs.writeFileSync('index.out', result);
+          return result;
+      }
+})};
+
 var clone = function(fn) {
     // Workaround for commander.js issue.
     // http://stackoverflow.com/a/6772648
@@ -65,11 +77,19 @@ if(require.main == module) {
     program
         .option('-f, --file <html_file>', 'Path to index.html', clone(assertFileExists), HTMLFILE_DEFAULT)
         .option('-c, --checks <check_file>', 'Path to checks.json', clone(assertFileExists), CHECKSFILE_DEFAULT)
+        .option('-u, --url <url>', 'URL to check the HTML file') 
         .parse(process.argv);
+    if(program.url === undefined) {
+    console.log("No URL Entered");
     var checkJson = checkHtmlFile(program.file, program.checks);
+    } else {
+	console.log("URL=" + program.url);
+        var htmltext = loadhtml(program.url);
+        var checkJson = checkHtmlFile('index.out', program.checks);
+    }
     var outJson = JSON.stringify(checkJson, null, 4);
     console.log(outJson);
-    fs.writeFileSync("HW3json.txt",outJson);
+//    fs.writeFileSync("HW3json.txt",outJson);
 } else {
     exports.checkHtmlFile = checkHtmlFile;
 }
